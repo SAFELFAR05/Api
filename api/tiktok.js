@@ -1,14 +1,11 @@
 export default async function handler(req, res) {
   const q = req.query.q
-
   if (!q) {
-    return res.status(400).json({
-      success: false,
-      message: "missing ?q="
-    })
+    return res
+      .status(400)
+      .send(JSON.stringify({ success: false }, null, 2))
   }
 
-  // 🔑 APIKEY DISIMPAN DI SERVER (AMAN)
   const FERDEV_KEY = "key-elfs"
 
   const api =
@@ -16,35 +13,22 @@ export default async function handler(req, res) {
     "?query=" + encodeURIComponent(q) +
     "&apikey=" + FERDEV_KEY
 
-  try {
-    const r = await fetch(api, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-        "Accept": "application/json"
-      }
-    })
+  const r = await fetch(api)
+  const raw = await r.json()
 
-    const data = await r.json()
+  const results = Array.isArray(raw.result) ? raw.result : []
 
-    // 🔥 FORMAT ULANG + BRANDING
-    const results = Array.isArray(data.result)
-      ? data.result
-      : []
-
-    return res.status(200).json({
-      success: true,
-      author: "ELFAR API",
-      platform: "tiktok",
-      query: q,
-      total: results.length,
-      results
-    })
-
-  } catch (e) {
-    return res.status(500).json({
-      success: false,
-      error: e.message
-    })
+  const response = {
+    success: true,
+    author: "ELFAR API",
+    platform: "tiktok",
+    query: q,
+    total: results.length,
+    results
   }
+
+  res
+    .status(200)
+    .setHeader("Content-Type", "application/json")
+    .send(JSON.stringify(response, null, 2))
 }
