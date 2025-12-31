@@ -1,7 +1,11 @@
 export default async function handler(req, res) {
   try {
-    const platform = req.query.platform
     const q = req.query.q
+
+    // 🔥 ambil platform dari URL path
+    const platform =
+      req.query.platform ||
+      req.url.split("?")[0].split("/").pop()
 
     if (!platform || !q) {
       return res.status(400).json({
@@ -9,6 +13,8 @@ export default async function handler(req, res) {
         message: "missing platform or q"
       })
     }
+
+    // === lanjut kode lama ===    
 
     const FERDEV_KEY = "key-elfs"
     const url =
