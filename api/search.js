@@ -1,72 +1,36 @@
 export default async function handler(req, res) {
-  // ===== CORS (FULL OPEN) =====
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "*");
-  res.setHeader("Content-Type", "application/json");
+  try {
+    const q = req.query.q
+    const platform = req.query.platform?.toLowerCase()
 
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
+    if (!platform || !q) {
+      return res.status(400).json({ success: false, message: "missing platform or q" })
+    }
+
+    const ALLOWED = [
+      "bstation","fdroid","getmodsapk","tokopedia","lirik","livewallpaper",
+      "pinterest","playstore","resep","sfile","spotify","soundcloud",
+      "tiktok","whatmusic","xvideos","xnxx","youtube"
+    ]
+    if (!ALLOWED.includes(platform)) {
+      return res.status(404).json({ success: false, message: "platform not supported" })
+    }
+
+    const FERDEV_KEY = "key-elfs"
+    const url = `https://api.ferdev.my.id/search/${platform}?query=${encodeURIComponent(q)}&apikey=${FERDEV_KEY}`
+
+    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" } })
+    const text = await r.text()
+
+    if (!r.ok) return res.status(502).json({ success: false, message: "Upstream API error", status: r.status, raw: text.slice(0,200) })
+
+    let data
+    try { data = JSON.parse(text) } catch { return res.status(502).json({ success: false, message: "Invalid JSON from upstream", raw: text.slice(0,200) }) }
+
+    const results = Array.isArray(data.result) ? data.result : []
+    return res.status(200).json({ success: true, author: "ELFAR API", platform, query: q, total: results.length, results })
+
+  } catch (err) {
+    return res.status(500).json({ success: false, author: "ELFAR API", message: "Server error", error: err.message })
   }
-
-  const q = req.query.q;
-  if (!q) {
-    return res.status(400).json({
-      success: false,
-      author: "ELFAR API",
-      message: "missing q parameter"
-    });
-  }
-
-  // ===== API KEY (AMAN DI SERVER) =====
-  const FERDEV_KEY = "key-elfs";
-
-  // ===== SEMUA PLATFORM SEARCH =====
-  const platforms = {
-    tiktok: "tiktok",
-    youtube: "youtube",
-    spotify: "spotify",
-    soundcloud: "soundcloud",
-
-    bstation: "bstation",
-    tokopedia: "tokopedia",
-    lirik: "lirik",
-    livewallpaper: "livewallpaper",
-    pinterest: "pinterest",
-    playstore: "playstore"
-  };
-
-  const results = {};
-
-  await Promise.all(
-    Object.entries(platforms).map(async ([name, endpoint]) => {
-      try {
-        const url =
-          `https://api.ferdev.my.id/search/${endpoint}` +
-          `?query=${encodeURIComponent(q)}&apikey=${FERDEV_KEY}`;
-
-        const r = await fetch(url);
-        const j = await r.json();
-
-        results[name] = {
-          success: true,
-          total: Array.isArray(j.result) ? j.result.length : 0,
-          results: j.result || []
-        };
-      } catch (err) {
-        results[name] = {
-          success: false,
-          error: err.message
-        };
-      }
-    })
-  );
-
-  return res.status(200).json({
-    success: true,
-    author: "ELFAR API",
-    query: q,
-    total_platforms: Object.keys(platforms).length,
-    results
-  });
 }
